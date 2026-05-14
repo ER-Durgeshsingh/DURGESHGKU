@@ -301,6 +301,7 @@ def _make_monthly_attendance_pdf(monthly_df, summary_df, teacher_name, month_lab
     pdf.set_font("Arial", "B", 9)
     widths = [55, 32, 28, 28, 32]
     headers = ["Subject", "Subject Code", "Present", "Total", "Percentage"]
+
     for w, h in zip(widths, headers):
         pdf.cell(w, 8, _safe_pdf_text(h), border=1, align="C")
     pdf.ln()
@@ -314,6 +315,7 @@ def _make_monthly_attendance_pdf(monthly_df, summary_df, teacher_name, month_lab
             row.get("Total_Count", 0),
             row.get("Percentage", "0%"),
         ]
+
         for w, v in zip(widths, values):
             pdf.cell(w, 8, _safe_pdf_text(v)[:30], border=1, align="C")
         pdf.ln()
@@ -323,28 +325,34 @@ def _make_monthly_attendance_pdf(monthly_df, summary_df, teacher_name, month_lab
     pdf.cell(0, 8, _safe_pdf_text("Detailed Attendance"), ln=True)
 
     pdf.set_font("Arial", "B", 8)
-    widths = [35, 45, 28, 45, 25]
-    headers = ["Date/Time", "Student", "Student ID", "Subject", "Status"]
+    widths = [28, 32, 22, 35, 34, 20]
+    headers = ["Date/Time", "Student", "Student ID", "University Roll No", "Subject", "Status"]
+
     for w, h in zip(widths, headers):
         pdf.cell(w, 7, _safe_pdf_text(h), border=1, align="C")
     pdf.ln()
 
     pdf.set_font("Arial", "", 8)
+
     for _, row in monthly_df.sort_values(by="DateTime", ascending=False).iterrows():
         values = [
             row.get("Time", ""),
             row.get("Student", ""),
             row.get("Student ID", ""),
+            row.get("University Roll Number", "N/A"),
             row.get("Subject", ""),
             row.get("Status", ""),
         ]
+
         for w, v in zip(widths, values):
-            pdf.cell(w, 7, _safe_pdf_text(v)[:28], border=1)
+            pdf.cell(w, 7, _safe_pdf_text(v)[:25], border=1)
         pdf.ln()
 
     output = pdf.output(dest="S")
+
     if isinstance(output, str):
         return output.encode("latin-1")
+
     return bytes(output)
 
 
@@ -468,21 +476,25 @@ def _make_excel_bytes(df_map):
 
 
 def _send_gmail(to_email, subject, body):
-    gmail_address = st.secrets.get("GMAIL_ADDRESS", "")
-    gmail_app_password = st.secrets.get("GMAIL_APP_PASSWORD", "")
-    if not gmail_address or not gmail_app_password:
-        return False, "Gmail secrets missing. Add GMAIL_ADDRESS and GMAIL_APP_PASSWORD in .streamlit/secrets.toml"
+    try:
+        gmail_address = st.secrets["GMAIL_ADDRESS"]
+        gmail_app_password = st.secrets["GMAIL_APP_PASSWORD"]
 
-    msg = EmailMessage()
-    msg["From"] = gmail_address
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.set_content(body)
+        msg = EmailMessage()
+        msg["From"] = gmail_address
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(body)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(gmail_address, gmail_app_password)
-        smtp.send_message(msg)
-    return True, "OTP sent on Gmail."
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(gmail_address, gmail_app_password)
+            smtp.send_message(msg)
+
+        return True, "OTP sent successfully"
+
+    except Exception as e:
+        return False, str(e)
+
 
 
 def _send_teacher_otp(identifier, purpose):
@@ -505,30 +517,46 @@ def _send_teacher_otp(identifier, purpose):
 
 def _attendance_dataframe(records):
     data = []
+
     for r in records:
         ts = r.get('timestamp')
         dt = _parse_attendance_datetime(ts)
+
         student = r.get('students') or {}
         subject = r.get('subjects') or {}
         is_present = bool(r.get('is_present', False))
+
         data.append({
             "ts_group": dt.strftime("%Y-%m-%d %H:%M:%S") if dt else str(ts),
             "DateTime": dt,
             "Month": dt.strftime("%Y-%m") if dt else "Unknown",
             "Month Label": dt.strftime("%B %Y") if dt else "Unknown",
             "Time": dt.strftime("%Y-%m-%d %I:%M %p") if dt else "N/A",
+
             "Subject": subject.get('name', 'N/A'),
             "Subject Code": subject.get('subject_code', 'N/A'),
+
             "Student": student.get('name', 'N/A'),
-            "Student ID": r.get('student_id', student.get('student_id', 'N/A')),
+            "Student ID": r.get(
+                'student_id',
+                student.get('student_id', 'N/A')
+            ),
+
+            "University Roll Number": student.get(
+                'university_roll_number',
+                'N/A'
+            ),
+
             "is_present": is_present,
             "Status": "Present" if is_present else "Absent",
         })
+
     return pd.DataFrame(data)
 
 
 def teacher_tab_admin_dashboard():
     st.header("Admin Dashboard & Auto Attendance Analytics")
+
     teacher_id = st.session_state.teacher_data['teacher_id']
     subjects = get_teacher_subjects(teacher_id)
     records = get_attendance_for_teacher(teacher_id)
@@ -550,23 +578,34 @@ def teacher_tab_admin_dashboard():
         return
 
     st.subheader("Subject-wise Analytics")
+
     subject_summary = (
         df.groupby(['Subject', 'Subject Code'])
         .agg(Present=('is_present', 'sum'), Total=('is_present', 'count'))
         .reset_index()
     )
-    subject_summary['Percentage'] = ((subject_summary['Present'] / subject_summary['Total']) * 100).round(2)
+
+    subject_summary['Percentage'] = (
+        (subject_summary['Present'] / subject_summary['Total']) * 100
+    ).round(2)
+
     st.dataframe(subject_summary, width='stretch', hide_index=True)
     st.bar_chart(subject_summary.set_index('Subject')['Percentage'])
 
     st.subheader("Student-wise Low Attendance Alerts")
+
     student_summary = (
-        df.groupby(['Student', 'Student ID', 'Subject'])
+        df.groupby(['Student', 'Student ID', 'University Roll Number', 'Subject'])
         .agg(Present=('is_present', 'sum'), Total=('is_present', 'count'))
         .reset_index()
     )
-    student_summary['Percentage'] = ((student_summary['Present'] / student_summary['Total']) * 100).round(2)
+
+    student_summary['Percentage'] = (
+        (student_summary['Present'] / student_summary['Total']) * 100
+    ).round(2)
+
     low_df = student_summary[student_summary['Percentage'] < 75].sort_values('Percentage')
+
     if low_df.empty:
         st.success("No low-attendance students below 75%.")
     else:
@@ -574,12 +613,17 @@ def teacher_tab_admin_dashboard():
         st.dataframe(low_df, width='stretch', hide_index=True)
 
     st.subheader("Month-wise Trend")
+
     month_summary = (
         df[df['Month'] != 'Unknown'].groupby('Month')
         .agg(Present=('is_present', 'sum'), Total=('is_present', 'count'))
         .reset_index()
     )
-    month_summary['Percentage'] = ((month_summary['Present'] / month_summary['Total']) * 100).round(2)
+
+    month_summary['Percentage'] = (
+        (month_summary['Present'] / month_summary['Total']) * 100
+    ).round(2)
+
     st.line_chart(month_summary.set_index('Month')['Percentage'])
 
     excel_bytes = _make_excel_bytes({
@@ -589,6 +633,7 @@ def teacher_tab_admin_dashboard():
         "Monthly Trend": month_summary,
         "Raw Attendance": df.drop(columns=['DateTime'], errors='ignore'),
     })
+
     st.download_button(
         "Download Full Analytics Excel",
         data=excel_bytes,

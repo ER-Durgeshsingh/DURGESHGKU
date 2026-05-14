@@ -15,3 +15,6 @@ audio_data/
 *.pth
 .DS_Store
 tempCodeRunnerFile.py
+.streamlit/secrets.toml
+venv/
+__pycache__/
