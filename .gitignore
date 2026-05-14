@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.streamlit/secrets.toml
+uploads/
+face_data/
+audio_data/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+.DS_Store
+tempCodeRunnerFile.py
