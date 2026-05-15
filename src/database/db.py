@@ -18,25 +18,41 @@ def check_teacher_exists(username):
 
 
 def get_teacher_by_username_or_email(value):
+
     if not value:
         return None
+
     value = value.strip()
+
     try:
+        # First try username
         response = (
             supabase.table("teachers")
             .select("*")
-            .or_(f"username.eq.{value},email.eq.{value}")
+            .eq("username", value)
             .limit(1)
             .execute()
         )
-        return response.data[0] if response.data else None
-    except Exception:
-        # Fallback for projects whose Supabase/PostgREST does not support .or_ in client version
-        response = supabase.table("teachers").select("*").eq("username", value).limit(1).execute()
+
         if response.data:
             return response.data[0]
-        response = supabase.table("teachers").select("*").eq("email", value).limit(1).execute()
-        return response.data[0] if response.data else None
+
+        # Then try email
+        response = (
+            supabase.table("teachers")
+            .select("*")
+            .eq("email", value)
+            .limit(1)
+            .execute()
+        )
+
+        if response.data:
+            return response.data[0]
+
+    except Exception as e:
+        print("Teacher lookup error:", e)
+
+    return None
 
 
 def create_teacher(username, password, name, email=None):
