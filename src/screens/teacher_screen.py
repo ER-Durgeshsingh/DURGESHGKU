@@ -527,7 +527,7 @@ def _make_register_style_excel(monthly_df, teacher_name, month_label):
             writer,
             sheet_name="Monthly Register",
             index=False,
-            startrow=4
+            startrow=6
         )
 
         ws = writer.book["Monthly Register"]
@@ -537,8 +537,16 @@ def _make_register_style_excel(monthly_df, teacher_name, month_label):
         ws["A1"] = "ATTENDANCE REGISTER"
 
         ws["A2"] = f"Teacher: {teacher_name}"
+        
+        subject_name = monthly_df["Subject"].iloc[0]
+        subject_code = monthly_df["Subject Code"].iloc[0]
 
-        ws["A3"] = f"Month: {month_label}"
+        ws["A3"] = f"Subject: {subject_name}"
+
+        ws["A4"] = f"Subject Code: {subject_code}"
+
+
+        ws["A5"] = f"Month: {month_label}"
 
         from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
         from openpyxl.utils import get_column_letter
@@ -566,7 +574,7 @@ def _make_register_style_excel(monthly_df, teacher_name, month_label):
                     vertical="center"
                 )
 
-        for cell in ws[5]:
+        for cell in ws[7]:
             cell.font = Font(bold=True)
             cell.fill = header_fill
 
