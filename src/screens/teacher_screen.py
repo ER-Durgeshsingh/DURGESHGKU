@@ -450,23 +450,23 @@ def teacher_tab_attendance_records():
         month_label=selected_month_label,
     )
 
+    register_excel_bytes = _make_register_style_excel(
+        monthly_df=monthly_df,
+        teacher_name=teacher_name,
+        month_label=selected_month_label
+    )
+
+    st.download_button(
+        label=f"Download {selected_month_label} Register Excel",
+        data=register_excel_bytes,
+        file_name=f"attendance_register_{selected_month}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type='primary',
+        width='stretch',
+        key='teacher_register_excel_download_btn'
+    )
+
     if pdf_bytes:
-        register_excel_bytes = _make_register_style_excel(
-            monthly_df=monthly_df,
-            teacher_name=teacher_name,
-            month_label=selected_month_label
-        )
-
-        st.download_button(
-            label=f"Download {selected_month_label} Register Excel",
-            data=register_excel_bytes,
-            file_name=f"attendance_register_{selected_month}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type='primary',
-            width='stretch',
-            key='teacher_register_excel_download_btn'
-        )
-
         st.download_button(
             label=f"Download {selected_month_label} PDF",
             data=pdf_bytes,
@@ -478,7 +478,6 @@ def teacher_tab_attendance_records():
         )
     else:
         st.error('PDF package missing. Run: pip install fpdf2')
-    
 
 
 
@@ -490,10 +489,15 @@ def _make_excel_bytes(df_map):
             df.to_excel(writer, sheet_name=safe_name, index=False)
     output.seek(0)
     return output.getvalue()
+
+
 def _make_register_style_excel(monthly_df, teacher_name, month_label):
     output = BytesIO()
-
     df = monthly_df.copy()
+
+    df = df[df["DateTime"].notna()].copy()
+    if df.empty:
+        return _make_excel_bytes({"Monthly Register": pd.DataFrame()})
 
     df["Day"] = df["DateTime"].dt.day
 
@@ -521,8 +525,10 @@ def _make_register_style_excel(monthly_df, teacher_name, month_label):
         "University Roll Number": "University Roll No"
     }, inplace=True)
 
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    subject_name = monthly_df["Subject"].iloc[0] if not monthly_df.empty else "N/A"
+    subject_code = monthly_df["Subject Code"].iloc[0] if not monthly_df.empty else "N/A"
 
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
         register_df.to_excel(
             writer,
             sheet_name="Monthly Register",
@@ -531,66 +537,40 @@ def _make_register_style_excel(monthly_df, teacher_name, month_label):
         )
 
         ws = writer.book["Monthly Register"]
-
         ws.merge_cells("A1:AH1")
-
         ws["A1"] = "ATTENDANCE REGISTER"
-
         ws["A2"] = f"Teacher: {teacher_name}"
-        
-        subject_name = monthly_df["Subject"].iloc[0]
-        subject_code = monthly_df["Subject Code"].iloc[0]
-
         ws["A3"] = f"Subject: {subject_name}"
-
         ws["A4"] = f"Subject Code: {subject_code}"
-
-
         ws["A5"] = f"Month: {month_label}"
 
         from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
         from openpyxl.utils import get_column_letter
 
         ws["A1"].font = Font(size=16, bold=True)
-
         ws["A1"].alignment = Alignment(horizontal="center")
 
         header_fill = PatternFill("solid", fgColor="D9EAF7")
-
         thin = Side(border_style="thin", color="000000")
-
-        border = Border(
-            left=thin,
-            right=thin,
-            top=thin,
-            bottom=thin
-        )
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
         for row in ws.iter_rows():
             for cell in row:
                 cell.border = border
-                cell.alignment = Alignment(
-                    horizontal="center",
-                    vertical="center"
-                )
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
         for cell in ws[7]:
             cell.font = Font(bold=True)
             cell.fill = header_fill
 
-        ws.column_dimensions["A"].width = 25
+        ws.column_dimensions["A"].width = 28
         ws.column_dimensions["B"].width = 15
         ws.column_dimensions["C"].width = 22
-
         for col in range(4, 35):
             ws.column_dimensions[get_column_letter(col)].width = 4
 
     output.seek(0)
-
     return output.getvalue()
-
-
-
 
 
 def _send_gmail(to_email, subject, body):

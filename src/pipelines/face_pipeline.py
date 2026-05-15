@@ -1,17 +1,8 @@
-try:
-    import face_recognition_models
-except Exception:
-    face_recognition_models = None
 
-try:
-    import dlib
-except Exception:
-    dlib = None
+
+import dlib
 import numpy as np
-try:
-    import face_recognition
-except Exception:
-    face_recognition = None
+import face_recognition_models
 from sklearn.svm import SVC
 import streamlit as st
 
@@ -20,10 +11,8 @@ from src.database.db import get_all_students
 
 @st.cache_resource
 def load_dlib_models():
-    if dlib is None or face_recognition_models is None:
-        return None, None, None
+    detector = dlib.get_frontal_face_detector() 
 
-    detector = dlib.get_frontal_face_detector()
 
     sp = dlib.shape_predictor(
         face_recognition_models.pose_predictor_model_location()
@@ -37,18 +26,15 @@ def load_dlib_models():
 
 def get_face_embeddings(image_np):
     detector, sp, facerec = load_dlib_models()
-
-    if detector is None or sp is None or facerec is None:
-        return []
-
     faces = detector(image_np, 1)
-    encodings = []
+
+    encodings= []
 
     for face in faces:
         shape = sp(image_np, face)
-        face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1)
-        encodings.append(np.array(face_descriptor))
+        face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1) #128 embedding
 
+        encodings.append(np.array(face_descriptor))
     return encodings
 
 @st.cache_resource
@@ -87,20 +73,35 @@ def train_classifier():
     return bool(model_data)
 
 def predict_attendance(class_image_np):
-
-    if dlib is None or face_recognition is None:
-        return {}, [], 0
-
     encodings = get_face_embeddings(class_image_np)
 
     detected_student = {}
+
 
     model_data = get_trained_model()
 
     if not model_data:
         return detected_student, [], len(encodings)
-
+    
     clf = model_data['clf']
     X_train = model_data['X']
     y_train = model_data['y']
+
+    all_students = sorted(list(set(y_train)))
+
+    for encoding in encodings:
+        if len(all_students)>= 2:
+            predicted_id= int(clf.predict([encoding])[0])
+        else:
+            predicted_id = int(all_students[0])
+
+        student_embedding = X_train[y_train.index(predicted_id)]
+
+        best_match_score = np.linalg.norm(student_embedding - encoding)
+
+        resemblance_threshold = 0.6
+
+        if best_match_score <= resemblance_threshold:
+            detected_student[predicted_id] = True
+    return detected_student, all_students, len(encodings)
 

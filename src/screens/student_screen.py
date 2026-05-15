@@ -149,9 +149,9 @@ def student_screen():
             st.header('Register new Profile')
             new_name = st.text_input("Enter your name", placeholder='E.g. Durgeshwar Kumar', key="student_register_name")
             student_roll_number = st.text_input(
-            "University Roll Number",
-            placeholder="2023BCSE001",
-             key="student_roll_number"
+                "University Roll Number",
+                placeholder="2023BCSE001",
+                key="student_roll_number"
             )
 
             st.subheader('Optional : Voice Enrollment')
@@ -178,10 +178,10 @@ def student_screen():
                                 voice_emb = get_voice_embedding(audio_data.read())
 
                             response_data = create_student(
-                            new_name,
-                            student_roll_number=student_roll_number,
-                            face_embedding=face_emb,
-                            voice_embedding=voice_emb
+                                new_name,
+                                student_roll_number=student_roll_number,
+                                face_embedding=face_emb,
+                                voice_embedding=voice_emb
                             )
 
                             if response_data:

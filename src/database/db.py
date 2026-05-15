@@ -18,14 +18,12 @@ def check_teacher_exists(username):
 
 
 def get_teacher_by_username_or_email(value):
-
     if not value:
         return None
 
     value = value.strip()
 
     try:
-        # First try username
         response = (
             supabase.table("teachers")
             .select("*")
@@ -33,11 +31,12 @@ def get_teacher_by_username_or_email(value):
             .limit(1)
             .execute()
         )
-
         if response.data:
             return response.data[0]
+    except Exception as e:
+        print("Teacher username lookup error:", e)
 
-        # Then try email
+    try:
         response = (
             supabase.table("teachers")
             .select("*")
@@ -45,18 +44,21 @@ def get_teacher_by_username_or_email(value):
             .limit(1)
             .execute()
         )
-
         if response.data:
             return response.data[0]
-
     except Exception as e:
-        print("Teacher lookup error:", e)
+        print("Teacher email lookup error:", e)
 
     return None
 
 
 def create_teacher(username, password, name, email=None):
-    data = {"username": username, "password": hash_pass(password), "name": name, "email": email}
+    data = {
+        "username": username,
+        "password": hash_pass(password),
+        "name": name,
+        "email": email,
+    }
     response = supabase.table("teachers").insert(data).execute()
     return response.data
 
@@ -89,6 +91,9 @@ def create_teacher_otp(teacher_id, purpose="login"):
 
 
 def verify_teacher_otp(teacher_id, otp_code, purpose="login"):
+    if not teacher_id or not otp_code:
+        return False
+
     response = (
         supabase.table("teacher_otps")
         .select("*")
@@ -100,12 +105,22 @@ def verify_teacher_otp(teacher_id, otp_code, purpose="login"):
         .limit(1)
         .execute()
     )
+
     if not response.data:
         return False
+
     row = response.data[0]
-    expires_at = datetime.fromisoformat(str(row["expires_at"]).replace("Z", "+00:00")).replace(tzinfo=None)
+
+    try:
+        expires_at = datetime.fromisoformat(str(row["expires_at"]).replace("Z", "+00:00"))
+        if expires_at.tzinfo is not None:
+            expires_at = expires_at.replace(tzinfo=None)
+    except Exception:
+        return False
+
     if datetime.utcnow() > expires_at:
         return False
+
     supabase.table("teacher_otps").update({"used": True}).eq("otp_id", row["otp_id"]).execute()
     return True
 
@@ -115,21 +130,16 @@ def get_all_students():
     return response.data
 
 
-def create_student(
-    new_name,
-    student_roll_number=None,
-    face_embedding=None,
-    voice_embedding=None
-):
+def create_student(new_name, student_roll_number=None, face_embedding=None, voice_embedding=None):
     data = {
         "name": new_name,
         "university_roll_number": student_roll_number,
         "face_embedding": face_embedding,
-        "voice_embedding": voice_embedding
+        "voice_embedding": voice_embedding,
     }
-
     response = supabase.table("students").insert(data).execute()
     return response.data
+
 
 def create_subject(subject_code, name, section, teacher_id):
     data = {"subject_code": subject_code, "name": name, "section": section, "teacher_id": teacher_id}
