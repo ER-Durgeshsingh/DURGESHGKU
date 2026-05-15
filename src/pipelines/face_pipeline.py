@@ -1,8 +1,14 @@
 
 
-import dlib
+try:
+    import dlib
+except Exception:
+    dlib = None
 import numpy as np
-import face_recognition_models
+try:
+    import face_recognition
+except Exception:
+    face_recognition = None
 from sklearn.svm import SVC
 import streamlit as st
 
@@ -79,6 +85,8 @@ def predict_attendance(class_image_np):
 
 
     model_data = get_trained_model()
+    if dlib is None or face_recognition is None:
+    return {}, [], 0
 
     if not model_data:
         return detected_student, [], len(encodings)
