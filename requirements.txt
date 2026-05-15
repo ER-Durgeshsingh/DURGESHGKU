@@ -10,3 +10,7 @@ fpdf2
 openpyxl
 segno
 resemblyzer
+cmake
+dlib-bin
+face-recognition
+face-recognition-models
