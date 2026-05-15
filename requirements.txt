@@ -8,4 +8,5 @@ scikit-learn
 bcrypt
 fpdf2
 openpyxl
+segno
 resemblyzer
