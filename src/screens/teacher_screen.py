@@ -451,6 +451,22 @@ def teacher_tab_attendance_records():
     )
 
     if pdf_bytes:
+        register_excel_bytes = _make_register_style_excel(
+            monthly_df=monthly_df,
+            teacher_name=teacher_name,
+            month_label=selected_month_label
+        )
+
+        st.download_button(
+            label=f"Download {selected_month_label} Register Excel",
+            data=register_excel_bytes,
+            file_name=f"attendance_register_{selected_month}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type='primary',
+            width='stretch',
+            key='teacher_register_excel_download_btn'
+        )
+
         st.download_button(
             label=f"Download {selected_month_label} PDF",
             data=pdf_bytes,
@@ -462,6 +478,7 @@ def teacher_tab_attendance_records():
         )
     else:
         st.error('PDF package missing. Run: pip install fpdf2')
+    
 
 
 
@@ -473,6 +490,99 @@ def _make_excel_bytes(df_map):
             df.to_excel(writer, sheet_name=safe_name, index=False)
     output.seek(0)
     return output.getvalue()
+def _make_register_style_excel(monthly_df, teacher_name, month_label):
+    output = BytesIO()
+
+    df = monthly_df.copy()
+
+    df["Day"] = df["DateTime"].dt.day
+
+    register_df = (
+        df.pivot_table(
+            index=["Student", "Student ID", "University Roll Number"],
+            columns="Day",
+            values="Status",
+            aggfunc=lambda x: "P" if "Present" in list(x) else "A"
+        )
+        .reset_index()
+    )
+
+    for day in range(1, 32):
+        if day not in register_df.columns:
+            register_df[day] = ""
+
+    register_df = register_df[
+        ["Student", "Student ID", "University Roll Number"] + list(range(1, 32))
+    ]
+
+    register_df.rename(columns={
+        "Student": "Student Name",
+        "Student ID": "Student ID",
+        "University Roll Number": "University Roll No"
+    }, inplace=True)
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+
+        register_df.to_excel(
+            writer,
+            sheet_name="Monthly Register",
+            index=False,
+            startrow=4
+        )
+
+        ws = writer.book["Monthly Register"]
+
+        ws.merge_cells("A1:AH1")
+
+        ws["A1"] = "ATTENDANCE REGISTER"
+
+        ws["A2"] = f"Teacher: {teacher_name}"
+
+        ws["A3"] = f"Month: {month_label}"
+
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        ws["A1"].font = Font(size=16, bold=True)
+
+        ws["A1"].alignment = Alignment(horizontal="center")
+
+        header_fill = PatternFill("solid", fgColor="D9EAF7")
+
+        thin = Side(border_style="thin", color="000000")
+
+        border = Border(
+            left=thin,
+            right=thin,
+            top=thin,
+            bottom=thin
+        )
+
+        for row in ws.iter_rows():
+            for cell in row:
+                cell.border = border
+                cell.alignment = Alignment(
+                    horizontal="center",
+                    vertical="center"
+                )
+
+        for cell in ws[5]:
+            cell.font = Font(bold=True)
+            cell.fill = header_fill
+
+        ws.column_dimensions["A"].width = 25
+        ws.column_dimensions["B"].width = 15
+        ws.column_dimensions["C"].width = 22
+
+        for col in range(4, 35):
+            ws.column_dimensions[get_column_letter(col)].width = 4
+
+    output.seek(0)
+
+    return output.getvalue()
+
+
+
 
 
 def _send_gmail(to_email, subject, body):
