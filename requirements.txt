@@ -5,7 +5,8 @@ scikit-learn
 opencv-python-headless
 face_recognition
 dlib-bin
-supabase==2.10.0
+# supabase==2.10.0
+supabase==2.15.2
 bcrypt
 segno
 pillow
