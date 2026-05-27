@@ -6,7 +6,7 @@ opencv-python-headless
 face_recognition
 dlib
 # supabase==2.10.0
-supabase==2.15.2
+supabase==2.3.4
 bcrypt
 segno
 pillow
