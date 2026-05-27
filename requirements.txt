@@ -4,7 +4,7 @@ pandas
 scikit-learn
 opencv-python-headless
 face_recognition
-dlib-bin
+dlib
 # supabase==2.10.0
 supabase==2.15.2
 bcrypt
