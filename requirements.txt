@@ -1,11 +1,12 @@
 streamlit
+supabase>=2.0.0
 numpy
 pandas
 scikit-learn
 opencv-python-headless
 face_recognition
 dlib
-supabase==2.10.0
+# supabase==2.10.0
 bcrypt
 segno
 pillow
