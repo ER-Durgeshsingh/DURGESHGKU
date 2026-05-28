@@ -1,4 +1,7 @@
 [server]
-port = 10000
-enableCORS = true
-enableXsrfProtection = true
+headless = true
+enableCORS = false
+# [server]
+# headless = true
+# port = 10000
+# enableCORS = false
