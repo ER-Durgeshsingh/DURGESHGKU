@@ -81,10 +81,3 @@ create index if not exists idx_attendance_student_id on attendance_logs(student_
 create index if not exists idx_attendance_timestamp on attendance_logs(timestamp);
 create index if not exists idx_teacher_otps_teacher_id on teacher_otps(teacher_id);
 
--- Admin / HOD / Principal users
-insert into teachers(username, email, password, name, role)
-values
-('admin', 'admin@gmail.com', '123456', 'Admin User', 'admin'),
-('hod', 'hod@gmail.com', '123456', 'HOD User', 'hod'),
-('principal', 'principal@gmail.com', '123456', 'Principal User', 'principal')
-on conflict (email) do nothing;
