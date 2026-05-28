@@ -130,10 +130,11 @@ def get_all_students():
     return response.data
 
 
-def create_student(new_name, student_roll_number=None, face_embedding=None, voice_embedding=None):
+def create_student(new_name, student_roll_number=None, parent_email=None, face_embedding=None, voice_embedding=None):
     data = {
         "name": new_name,
         "university_roll_number": student_roll_number,
+        "parent_email": parent_email,
         "face_embedding": face_embedding,
         "voice_embedding": voice_embedding,
     }
